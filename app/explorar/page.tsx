@@ -61,14 +61,14 @@ export default async function ExplorarPage({ searchParams }: PageProps) {
     console.error("Error cargando categorías:", categoriesError.message);
   }
 
-  const restaurantsQuery = supabase
+  let restaurantsQuery = supabase
     .from("restaurants")
     .select("id, name, slug, description, price_level, cover_url")
     .order("created_at", { ascending: false })
     .limit(25);
 
   if (selectedCategory && restaurantIds && restaurantIds.length > 0) {
-    restaurantsQuery.in("id", restaurantIds);
+    restaurantsQuery = restaurantsQuery.in("id", restaurantIds);
   }
 
   const shouldSkipRestaurants =
