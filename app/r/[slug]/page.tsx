@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 import { supabase } from "@/lib/supabaseClient";
 import { notFound } from "next/navigation";
 
@@ -10,6 +12,36 @@ type Location = {
   municipio: string | null;
   zone: string | null;
 };
+
+type MetadataProps = {
+  params: Promise<{ slug: string }>;
+};
+
+const fallbackDescription = "Guía gastronómica de Puerto Rico";
+
+export async function generateMetadata({
+  params,
+}: MetadataProps): Promise<Metadata> {
+  const { slug } = await params;
+
+  const { data, error } = await supabase
+    .from("restaurants")
+    .select("name, description")
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (error || !data?.name) {
+    return {
+      title: "A la Carta",
+      description: fallbackDescription,
+    };
+  }
+
+  return {
+    title: `${data.name} | A la Carta`,
+    description: data.description?.trim() || fallbackDescription,
+  };
+}
 
 export default async function RestaurantPage({ params }: PageProps) {
   const { slug } = await params;
