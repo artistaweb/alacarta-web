@@ -22,15 +22,19 @@ function formatPriceLevel(value: number | string | null) {
   return text.length > 0 ? text : null;
 }
 
+function buildExplorarHref(categorySlug?: string) {
+  return categorySlug
+    ? `/explorar?cat=${encodeURIComponent(categorySlug)}`
+    : "/explorar";
+}
+
 export default async function ExplorarPage({ searchParams }: PageProps) {
   const resolvedSearchParams = await Promise.resolve(searchParams ?? {});
   const catParam = resolvedSearchParams.cat;
   const selectedCategorySlug = Array.isArray(catParam)
     ? catParam[0]
     : catParam;
-  const currentExplorarPath = selectedCategorySlug
-    ? `/explorar?cat=${encodeURIComponent(selectedCategorySlug)}`
-    : "/explorar";
+  const currentExplorarPath = buildExplorarHref(selectedCategorySlug);
   const fromParam = encodeURIComponent(currentExplorarPath);
 
   const { data: categories, error: categoriesError } = await supabase
@@ -163,7 +167,7 @@ export default async function ExplorarPage({ searchParams }: PageProps) {
 
         <div className="mt-5 flex flex-wrap items-center gap-2">
           <Link
-            href="/explorar"
+            href={buildExplorarHref()}
             className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
               !selectedCategorySlug
                 ? "border-white/30 bg-white/20 text-white"
@@ -177,7 +181,7 @@ export default async function ExplorarPage({ searchParams }: PageProps) {
             return (
               <Link
                 key={category.id}
-                href={`/explorar?cat=${category.slug}`}
+                href={buildExplorarHref(category.slug)}
                 className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
                   isActive
                     ? "border-white/30 bg-white/20 text-white"
