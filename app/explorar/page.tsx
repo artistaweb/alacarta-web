@@ -89,6 +89,70 @@ export default async function ExplorarPage({ searchParams }: PageProps) {
     );
   }
 
+  const displayedRestaurantIds = (data ?? []).map((restaurant) => restaurant.id);
+  let restaurantCategories: Record<string, string[]> = {};
+
+  if (displayedRestaurantIds.length > 0) {
+    const { data: categoryLinks, error: categoryLinksError } = await supabase
+      .from("restaurant_categories")
+      .select("restaurant_id, category_id")
+      .in("restaurant_id", displayedRestaurantIds);
+
+    if (categoryLinksError) {
+      console.error(
+        "Error cargando categorías de restaurantes:",
+        categoryLinksError.message,
+      );
+    } else if (categoryLinks && categoryLinks.length > 0) {
+      const categoryIds = Array.from(
+        new Set(
+          categoryLinks
+            .map((row) => row.category_id)
+            .filter((id): id is string => Boolean(id)),
+        ),
+      );
+
+      if (categoryIds.length > 0) {
+        const { data: categoryRows, error: categoryRowsError } = await supabase
+          .from("categories")
+          .select("id, name")
+          .in("id", categoryIds);
+
+        if (categoryRowsError) {
+          console.error(
+            "Error cargando nombres de categorías:",
+            categoryRowsError.message,
+          );
+        } else if (categoryRows) {
+          const categoryNameById = new Map(
+            categoryRows.map((category) => [category.id, category.name]),
+          );
+
+          restaurantCategories = categoryLinks.reduce(
+            (acc, row) => {
+              if (!row.restaurant_id || !row.category_id) {
+                return acc;
+              }
+
+              const name = categoryNameById.get(row.category_id);
+              if (!name) {
+                return acc;
+              }
+
+              const existing = acc[row.restaurant_id] ?? [];
+              if (!existing.includes(name)) {
+                acc[row.restaurant_id] = [...existing, name];
+              }
+
+              return acc;
+            },
+            {} as Record<string, string[]>,
+          );
+        }
+      }
+    }
+  }
+
   return (
     <main className="px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto w-full max-w-6xl">
@@ -129,6 +193,8 @@ export default async function ExplorarPage({ searchParams }: PageProps) {
         <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {data?.map((r) => {
             const priceLabel = formatPriceLevel(r.price_level) ?? "N/A";
+            const categoryBadges = restaurantCategories[r.id] ?? [];
+            const visibleCategories = categoryBadges.slice(0, 3);
 
             return (
               <Link
@@ -168,6 +234,18 @@ export default async function ExplorarPage({ searchParams }: PageProps) {
                   <p className="mt-3 text-sm text-white/40">
                     Sin descripción disponible.
                   </p>
+                )}
+                {visibleCategories.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {visibleCategories.map((category) => (
+                      <span
+                        key={`${r.id}-${category}`}
+                        className="rounded-full border border-white/15 px-2 py-0.5 text-[11px] font-medium text-white/70"
+                      >
+                        {category}
+                      </span>
+                    ))}
+                  </div>
                 )}
                 <span className="mt-4 inline-flex items-center text-xs text-white/50 transition group-hover:text-white/70">
                   Ver detalle
