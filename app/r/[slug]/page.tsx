@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { supabase } from "@/lib/supabaseClient";
 import { notFound } from "next/navigation";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
+  searchParams?:
+    | Promise<Record<string, string | string[] | undefined>>
+    | Record<string, string | string[] | undefined>;
 };
 
 type Location = {
@@ -43,8 +47,18 @@ export async function generateMetadata({
   };
 }
 
-export default async function RestaurantPage({ params }: PageProps) {
+export default async function RestaurantPage({
+  params,
+  searchParams,
+}: PageProps) {
   const { slug } = await params;
+  const resolvedSearchParams = await Promise.resolve(searchParams ?? {});
+  const fromParam = resolvedSearchParams.from;
+  const backPath = Array.isArray(fromParam) ? fromParam[0] : fromParam;
+  const backHref =
+    typeof backPath === "string" && backPath.startsWith("/explorar")
+      ? backPath
+      : "/explorar";
 
   const { data: restaurant, error } = await supabase
     .from("restaurants")
@@ -85,6 +99,17 @@ export default async function RestaurantPage({ params }: PageProps) {
 
   return (
     <main className="p-6">
+      <nav className="text-xs text-white/60">
+        <Link
+          href={backHref}
+          className="transition hover:text-white"
+        >
+          Explorar
+        </Link>
+        <span className="mx-2 text-white/40">/</span>
+        <span className="text-white/80">{restaurant.name}</span>
+      </nav>
+
       <h1 className="text-2xl font-bold">{restaurant.name}</h1>
       <p className="mt-2 text-sm text-gray-600">Slug: {restaurant.slug}</p>
 
@@ -97,6 +122,13 @@ export default async function RestaurantPage({ params }: PageProps) {
           Nivel de precio: {restaurant.price_level}
         </p>
       )}
+
+      <Link
+        href={backHref}
+        className="mt-6 inline-flex text-sm text-white/70 transition hover:text-white"
+      >
+        Volver a Explorar
+      </Link>
 
       <div className="mt-8 rounded-lg border p-4">
         <p className="font-semibold">Ubicación principal</p>

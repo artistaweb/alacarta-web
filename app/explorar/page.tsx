@@ -28,6 +28,10 @@ export default async function ExplorarPage({ searchParams }: PageProps) {
   const selectedCategorySlug = Array.isArray(catParam)
     ? catParam[0]
     : catParam;
+  const currentExplorarPath = selectedCategorySlug
+    ? `/explorar?cat=${encodeURIComponent(selectedCategorySlug)}`
+    : "/explorar";
+  const fromParam = encodeURIComponent(currentExplorarPath);
 
   const { data: categories, error: categoriesError } = await supabase
     .from("categories")
@@ -129,7 +133,7 @@ export default async function ExplorarPage({ searchParams }: PageProps) {
             return (
               <Link
                 key={r.id}
-                href={`/r/${r.slug}`}
+                href={`/r/${r.slug}?from=${fromParam}`}
                 className="group rounded-xl border border-white/10 bg-white/5 p-5 transition hover:border-white/20 hover:bg-white/10"
               >
                 <div className="mb-4 overflow-hidden rounded-lg bg-white/10">
