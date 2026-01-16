@@ -158,10 +158,10 @@ export default async function ExplorarPage({ searchParams }: PageProps) {
   }
 
   return (
-    <main className="px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto w-full max-w-6xl">
+    <main className="py-8">
+      <div className="mx-auto w-full max-w-7xl px-6">
         <h1 className="text-2xl font-bold">Explorar</h1>
-        <p className="mt-2 text-sm text-white/60">
+        <p className="mt-2 text-sm text-muted-foreground">
           Resultados: {data?.length ?? 0}
         </p>
 
@@ -170,8 +170,8 @@ export default async function ExplorarPage({ searchParams }: PageProps) {
             href={buildExplorarHref()}
             className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
               !selectedCategorySlug
-                ? "border-white/30 bg-white/20 text-white"
-                : "border-white/10 text-white/70 hover:border-white/30 hover:text-white"
+                ? "border-border bg-muted text-foreground"
+                : "border-border text-muted-foreground hover:border-border hover:text-foreground"
             }`}
           >
             Todos
@@ -184,8 +184,8 @@ export default async function ExplorarPage({ searchParams }: PageProps) {
                 href={buildExplorarHref(category.slug)}
                 className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
                   isActive
-                    ? "border-white/30 bg-white/20 text-white"
-                    : "border-white/10 text-white/70 hover:border-white/30 hover:text-white"
+                    ? "border-border bg-muted text-foreground"
+                    : "border-border text-muted-foreground hover:border-border hover:text-foreground"
                 }`}
               >
                 {category.name}
@@ -204,9 +204,9 @@ export default async function ExplorarPage({ searchParams }: PageProps) {
               <Link
                 key={r.id}
                 href={`/r/${r.slug}?from=${fromParam}`}
-                className="group rounded-xl border border-white/10 bg-white/5 p-5 transition hover:border-white/20 hover:bg-white/10"
+                className="group rounded-xl border border-border bg-card p-5 transition hover:border-border hover:bg-muted"
               >
-                <div className="mb-4 overflow-hidden rounded-lg bg-white/10">
+                <div className="mb-4 overflow-hidden rounded-lg bg-muted">
                   <div className="aspect-[4/3] w-full">
                     {r.cover_url ? (
                       <img
@@ -216,26 +216,26 @@ export default async function ExplorarPage({ searchParams }: PageProps) {
                         loading="lazy"
                       />
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center bg-white/5 text-xs uppercase tracking-wide text-white/40">
+                      <div className="flex h-full w-full items-center justify-center bg-card text-xs uppercase tracking-wide text-muted-foreground/70">
                         Sin imagen
                       </div>
                     )}
                   </div>
                 </div>
                 <div className="flex items-start justify-between gap-3">
-                  <h2 className="text-lg font-semibold text-white">
+                  <h2 className="text-lg font-semibold text-foreground">
                     {r.name}
                   </h2>
-                  <span className="rounded-full border border-white/15 px-2.5 py-0.5 text-xs font-medium text-white/80">
+                  <span className="rounded-full border border-border px-2.5 py-0.5 text-xs font-medium text-foreground/80">
                     {priceLabel}
                   </span>
                 </div>
                 {r.description ? (
-                  <p className="mt-3 line-clamp-2 text-sm text-white/70">
+                  <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">
                     {r.description}
                   </p>
                 ) : (
-                  <p className="mt-3 text-sm text-white/40">
+                  <p className="mt-3 text-sm text-muted-foreground/70">
                     Sin descripción disponible.
                   </p>
                 )}
@@ -244,14 +244,14 @@ export default async function ExplorarPage({ searchParams }: PageProps) {
                     {visibleCategories.map((category) => (
                       <span
                         key={`${r.id}-${category}`}
-                        className="rounded-full border border-white/15 px-2 py-0.5 text-[11px] font-medium text-white/70"
+                        className="rounded-full border border-border px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
                       >
                         {category}
                       </span>
                     ))}
                   </div>
                 )}
-                <span className="mt-4 inline-flex items-center text-xs text-white/50 transition group-hover:text-white/70">
+                <span className="mt-4 inline-flex items-center text-xs text-muted-foreground transition group-hover:text-foreground/80">
                   Ver detalle
                 </span>
               </Link>
