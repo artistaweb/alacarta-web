@@ -14,13 +14,7 @@ import {
 } from "@/components/ui/navigation-menu";
 
 import { Button } from "@/components/ui/button";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 export default function Header() {
   const navLinkClass =
@@ -28,7 +22,7 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/90">
-      <div className="mx-auto flex min-h-20 w-full max-w-7xl items-center justify-between px-6">
+      <div className="mx-auto flex min-h-20 w-full max-w-7xl items-center justify-between px-6 sm:px-8 lg:px-10">
         <div className="flex items-center gap-6">
           <BrandLogo />
 
@@ -64,21 +58,18 @@ export default function Header() {
                 </Button>
               </SheetTrigger>
 
-              <SheetContent side="right">
-                <SheetHeader>
-                  <SheetTitle>Menú</SheetTitle>
-                </SheetHeader>
-
-                <nav className="mt-6 flex flex-col gap-2">
+              <SheetContent side="right" className="bg-background text-foreground">
+                {/* Sin titulo "Menú" */}
+                <nav className="mt-8 flex flex-col gap-2">
                   <Link
                     href="/"
-                    className="rounded-md px-3 py-2 text-sm font-medium hover:bg-muted"
+                    className="rounded-md px-3 py-2 text-sm font-medium text-foreground/90 hover:bg-muted"
                   >
                     Inicio
                   </Link>
                   <Link
                     href="/explorar"
-                    className="rounded-md px-3 py-2 text-sm font-medium hover:bg-muted"
+                    className="rounded-md px-3 py-2 text-sm font-medium text-foreground/90 hover:bg-muted"
                   >
                     Explorar
                   </Link>
