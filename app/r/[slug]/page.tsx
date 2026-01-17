@@ -15,7 +15,7 @@ import {
   CalendarDays,
 } from "lucide-react";
 
-import { supabase } from "@/lib/supabaseClient";
+import { createServerComponentClient } from "@/lib/supabase/server";
 import SimilarRestaurants from "@/components/restaurant/SimilarRestaurants";
 
 import { Separator } from "@/components/ui/separator";
@@ -46,8 +46,10 @@ type LocationRow = {
   is_primary: boolean | null;
 };
 
+type CategoryRow = { id: string; name: string; slug: string };
+
 type CategoryJoin = {
-  categories: { id: string; name: string; slug: string } | null;
+  categories: CategoryRow[] | CategoryRow | null;
 };
 
 type HourRow = {
@@ -244,6 +246,7 @@ function getWeeklyScheduleLines(hours: HourRow[]) {
 export async function generateMetadata({
   params,
 }: MetadataProps): Promise<Metadata> {
+  const supabase = await createServerComponentClient();
   const { slug } = await params;
 
   const { data, error } = await supabase
@@ -267,6 +270,7 @@ export async function generateMetadata({
 }
 
 export default async function RestaurantPage({ params, searchParams }: PageProps) {
+  const supabase = await createServerComponentClient();
   const { slug } = await params;
 
   const resolvedSearchParams = await Promise.resolve(searchParams ?? {});
@@ -334,8 +338,13 @@ export default async function RestaurantPage({ params, searchParams }: PageProps
 
   const categories =
     (restaurant.restaurant_categories as CategoryJoin[] | null | undefined)
-      ?.map((rc) => rc.categories)
-      .filter(Boolean) ?? [];
+      ?.flatMap((rc) =>
+        Array.isArray(rc.categories)
+          ? rc.categories
+          : rc.categories
+            ? [rc.categories]
+            : []
+      ) ?? [];
 
   // Mantener una categoría "principal" solo para SimilarRestaurants (no para UI)
   const primaryCategory = categories[0] ?? null;

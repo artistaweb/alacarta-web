@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { supabase } from "@/lib/supabaseClient";
+import { createServerComponentClient } from "@/lib/supabase/server";
 
 type PageProps = {
   searchParams?:
@@ -28,12 +28,25 @@ function buildExplorarHref(categorySlug?: string) {
     : "/explorar";
 }
 
+function normalizeCategoryList(categories: string[]) {
+  // Consistencia: orden alfabético y sin duplicados
+  return Array.from(new Set(categories)).sort((a, b) => a.localeCompare(b));
+}
+
+function pickVisibleCategories(
+  categories: string[],
+  maxVisible: number,
+): { visible: string[]; remaining: number } {
+  const visible = categories.slice(0, maxVisible);
+  const remaining = Math.max(0, categories.length - visible.length);
+  return { visible, remaining };
+}
+
 export default async function ExplorarPage({ searchParams }: PageProps) {
+  const supabase = await createServerComponentClient();
   const resolvedSearchParams = await Promise.resolve(searchParams ?? {});
   const catParam = resolvedSearchParams.cat;
-  const selectedCategorySlug = Array.isArray(catParam)
-    ? catParam[0]
-    : catParam;
+  const selectedCategorySlug = Array.isArray(catParam) ? catParam[0] : catParam;
   const currentExplorarPath = buildExplorarHref(selectedCategorySlug);
   const fromParam = encodeURIComponent(currentExplorarPath);
 
@@ -154,6 +167,11 @@ export default async function ExplorarPage({ searchParams }: PageProps) {
             },
             {} as Record<string, string[]>,
           );
+
+          // Normaliza: orden alfabético y sin duplicados
+          for (const [rid, cats] of Object.entries(restaurantCategories)) {
+            restaurantCategories[rid] = normalizeCategoryList(cats);
+          }
         }
       }
     }
@@ -200,7 +218,12 @@ export default async function ExplorarPage({ searchParams }: PageProps) {
           {data?.map((r) => {
             const priceLabel = formatPriceLevel(r.price_level) ?? "N/A";
             const categoryBadges = restaurantCategories[r.id] ?? [];
-            const visibleCategories = categoryBadges.slice(0, 3);
+
+            // Visible: 2 en móvil, 3 en desktop (+N si sobran)
+            const { visible: mobileVisible, remaining: mobileRemaining } =
+              pickVisibleCategories(categoryBadges, 2);
+            const { visible: desktopVisible, remaining: desktopRemaining } =
+              pickVisibleCategories(categoryBadges, 3);
 
             return (
               <Link
@@ -224,6 +247,7 @@ export default async function ExplorarPage({ searchParams }: PageProps) {
                     )}
                   </div>
                 </div>
+
                 <div className="flex items-start justify-between gap-3">
                   <h2 className="text-lg font-semibold text-foreground">
                     {r.name}
@@ -232,6 +256,7 @@ export default async function ExplorarPage({ searchParams }: PageProps) {
                     {priceLabel}
                   </span>
                 </div>
+
                 {r.description ? (
                   <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">
                     {r.description}
@@ -241,18 +266,49 @@ export default async function ExplorarPage({ searchParams }: PageProps) {
                     Sin descripción disponible.
                   </p>
                 )}
-                {visibleCategories.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {visibleCategories.map((category) => (
-                      <span
-                        key={`${r.id}-${category}`}
-                        className="rounded-full border border-border px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
-                      >
-                        {category}
-                      </span>
-                    ))}
-                  </div>
-                )}
+
+                {categoryBadges.length > 0 ? (
+                  <>
+                    {/* Mobile: 2 +N */}
+                    <div className="mt-3 flex flex-wrap gap-2 lg:hidden">
+                      {mobileVisible.map((category) => (
+                        <span
+                          key={`${r.id}-${category}`}
+                          title={category}
+                          className="h-6 max-w-[10rem] truncate rounded-full border border-border px-2 text-[11px] font-medium leading-6 text-muted-foreground"
+                        >
+                          {category}
+                        </span>
+                      ))}
+
+                      {mobileRemaining > 0 ? (
+                        <span className="h-6 rounded-full border border-border px-2 text-[11px] font-medium leading-6 text-muted-foreground">
+                          +{mobileRemaining}
+                        </span>
+                      ) : null}
+                    </div>
+
+                    {/* Desktop: 3 +N */}
+                    <div className="mt-3 hidden flex-wrap gap-2 lg:flex">
+                      {desktopVisible.map((category) => (
+                        <span
+                          key={`${r.id}-${category}`}
+                          title={category}
+                          className="h-6 max-w-[12rem] truncate rounded-full border border-border px-2 text-[11px] font-medium leading-6 text-muted-foreground"
+                        >
+                          {category}
+                        </span>
+                      ))}
+
+                      {desktopRemaining > 0 ? (
+                        <span className="h-6 rounded-full border border-border px-2 text-[11px] font-medium leading-6 text-muted-foreground">
+                          +{desktopRemaining}
+                        </span>
+                      ) : null}
+                    </div>
+                  </>
+                ) : null}
+
                 <span className="mt-4 inline-flex items-center text-xs text-muted-foreground transition group-hover:text-foreground/80">
                   Ver detalle
                 </span>
