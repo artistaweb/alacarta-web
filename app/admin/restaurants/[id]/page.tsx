@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 
-import RestaurantForm from "@/app/admin/restaurants/RestaurantForm";
+import RestaurantEditor from "@/app/admin/restaurants/[id]/_components/RestaurantEditor";
 import { slugify } from "@/lib/slug";
 import { createServerComponentClient } from "@/lib/supabase/server";
 
@@ -64,6 +65,28 @@ async function upsertPrimaryLocation(
   });
 }
 
+function normalizeHours(
+  hours:
+    | {
+        day_of_week: number;
+        is_closed: boolean;
+        opens_at: string | null;
+        closes_at: string | null;
+      }[]
+    | null
+) {
+  const byDay = new Map(hours?.map((entry) => [entry.day_of_week, entry]));
+  return days.map((day) => {
+    const entry = byDay.get(day);
+    return {
+      day_of_week: day,
+      is_closed: entry?.is_closed ?? false,
+      opens_at: entry?.opens_at ?? null,
+      closes_at: entry?.closes_at ?? null,
+    };
+  });
+}
+
 export default async function EditRestaurantPage({ params }: PageProps) {
   const { id } = await params;
   const supabase = await createServerComponentClient();
@@ -92,11 +115,27 @@ export default async function EditRestaurantPage({ params }: PageProps) {
     .select("day_of_week, is_closed, opens_at, closes_at")
     .eq("restaurant_id", id);
 
-  async function updateRestaurant(formData: FormData) {
+  const { data: categories } = await supabase
+    .from("categories")
+    .select("id, name, slug")
+    .order("name");
+
+  const { data: assignedCategories } = await supabase
+    .from("restaurant_categories")
+    .select("category_id")
+    .eq("restaurant_id", id);
+
+  const { data: galleryImages } = await supabase
+    .from("restaurant_gallery_images")
+    .select("id, url, path, sort_order, created_at")
+    .eq("restaurant_id", id)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
+
+  async function updateGeneral(formData: FormData) {
     "use server";
 
     const supabase = await createServerComponentClient();
-
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -117,11 +156,25 @@ export default async function EditRestaurantPage({ params }: PageProps) {
         description: toNullable(getString(formData, "description")),
         phone: toNullable(getString(formData, "phone")),
         website: toNullable(getString(formData, "website")),
-        cover_url: toNullable(getString(formData, "cover_url")),
         price_level: parseInteger(getString(formData, "price_level"), 2),
         status: getString(formData, "status") || "draft",
       })
       .eq("id", id);
+
+    revalidatePath(`/admin/restaurants/${id}`);
+  }
+
+  async function updateLocation(formData: FormData) {
+    "use server";
+
+    const supabase = await createServerComponentClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      redirect("/login");
+    }
 
     await upsertPrimaryLocation(supabase, id, {
       address: toNullable(getString(formData, "address")),
@@ -130,6 +183,21 @@ export default async function EditRestaurantPage({ params }: PageProps) {
       lat: parseNumber(getString(formData, "lat")),
       lng: parseNumber(getString(formData, "lng")),
     });
+
+    revalidatePath(`/admin/restaurants/${id}`);
+  }
+
+  async function updateHours(formData: FormData) {
+    "use server";
+
+    const supabase = await createServerComponentClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      redirect("/login");
+    }
 
     const hoursPayload = days.map((day) => {
       const isClosed = Boolean(formData.get(`hours_${day}_is_closed`));
@@ -149,7 +217,7 @@ export default async function EditRestaurantPage({ params }: PageProps) {
       .from("restaurant_hours")
       .upsert(hoursPayload, { onConflict: "restaurant_id,day_of_week" });
 
-    redirect(`/admin/restaurants/${id}`);
+    revalidatePath(`/admin/restaurants/${id}`);
   }
 
   return (
@@ -162,34 +230,35 @@ export default async function EditRestaurantPage({ params }: PageProps) {
           {restaurant.name ?? "Restaurante"}
         </h2>
       </div>
-      <RestaurantForm
-        action={updateRestaurant}
-        submitLabel="Guardar cambios"
-        initialData={{
-          restaurant: {
-            name: restaurant.name,
-            slug: restaurant.slug,
-            description: restaurant.description,
-            phone: restaurant.phone,
-            website: restaurant.website,
-            cover_url: restaurant.cover_url,
-            price_level: restaurant.price_level,
-            status: restaurant.status,
-          },
-          location: {
-            address: location?.address ?? "",
-            municipio: location?.municipio ?? "",
-            zone: location?.zone ?? "",
-            lat: location?.lat ?? null,
-            lng: location?.lng ?? null,
-          },
-          hours: hours ?? days.map((day) => ({
-            day_of_week: day,
-            is_closed: false,
-            opens_at: null,
-            closes_at: null,
-          })),
+
+      <RestaurantEditor
+        restaurantId={id}
+        coverUrl={restaurant.cover_url}
+        restaurant={{
+          name: restaurant.name,
+          slug: restaurant.slug,
+          description: restaurant.description,
+          phone: restaurant.phone,
+          website: restaurant.website,
+          price_level: restaurant.price_level,
+          status: restaurant.status,
         }}
+        location={{
+          address: location?.address ?? "",
+          municipio: location?.municipio ?? "",
+          zone: location?.zone ?? "",
+          lat: location?.lat ?? null,
+          lng: location?.lng ?? null,
+        }}
+        hours={normalizeHours(hours)}
+        categories={categories ?? []}
+        assignedCategoryIds={
+          assignedCategories?.map((category) => category.category_id) ?? []
+        }
+        galleryImages={galleryImages ?? []}
+        updateGeneral={updateGeneral}
+        updateLocation={updateLocation}
+        updateHours={updateHours}
       />
     </div>
   );

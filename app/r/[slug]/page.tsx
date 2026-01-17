@@ -57,6 +57,13 @@ type HourRow = {
   is_closed: boolean;
 };
 
+type GalleryRow = {
+  id: string;
+  url: string;
+  sort_order: number | null;
+  created_at: string;
+};
+
 type MetadataProps = { params: Promise<{ slug: string }> };
 
 const fallbackDescription = "Guía gastronómica de Puerto Rico";
@@ -271,7 +278,7 @@ export default async function RestaurantPage({ params, searchParams }: PageProps
       ? backPath
       : "/explorar";
 
-  // 1) Restaurante base + categorías
+  // Restaurante base + relaciones (categorías + galería)
   const { data: restaurant, error } = await supabase
     .from("restaurants")
     .select(
@@ -283,20 +290,33 @@ export default async function RestaurantPage({ params, searchParams }: PageProps
       phone,
       website,
       price_level,
-      status,
       cover_url,
+      status,
+      locations (
+        address,
+        municipio,
+        zone,
+        lat,
+        lng,
+        is_primary
+      ),
       restaurant_categories (
         categories (
           id,
           name,
           slug
         )
+      ),
+      restaurant_gallery_images (
+        id,
+        url,
+        sort_order,
+        created_at
       )
     `
     )
     .eq("slug", slug)
-    .eq("status", "published")
-    .maybeSingle();
+    .single();
 
   if (error) {
     return (
@@ -313,13 +333,19 @@ export default async function RestaurantPage({ params, searchParams }: PageProps
   if (!restaurant) notFound();
 
   const categories =
-    (restaurant.restaurant_categories as CategoryJoin[] | null)
-      ?.map((x) => x.categories)
+    (restaurant.restaurant_categories as CategoryJoin[] | null | undefined)
+      ?.map((rc) => rc.categories)
       .filter(Boolean) ?? [];
 
+  // Mantener una categoría "principal" solo para SimilarRestaurants (no para UI)
   const primaryCategory = categories[0] ?? null;
 
-  // 2) Ubicación primaria (o fallback)
+  const gallery = ((restaurant as any).restaurant_gallery_images ?? []) as GalleryRow[];
+  const sortedGallery = gallery
+    .slice()
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+
+  // Ubicación primaria (consulta independiente; puedes optimizar luego usando restaurant.locations)
   const { data: locations, error: locError } = await supabase
     .from("locations")
     .select("id,address,municipio,zone,lat,lng,is_primary")
@@ -343,7 +369,7 @@ export default async function RestaurantPage({ params, searchParams }: PageProps
     (locations as LocationRow[] | null)?.[0] ??
     null;
 
-  // 3) Horario
+  // Horario
   const { data: hoursData } = await supabase
     .from("restaurant_hours")
     .select("day_of_week, opens_at, closes_at, is_closed")
@@ -409,11 +435,27 @@ export default async function RestaurantPage({ params, searchParams }: PageProps
 
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex items-end">
               <div className="p-8 w-full">
-                <div className="flex flex-wrap items-center gap-3 mb-3">
-                  {primaryCategory ? (
-                    <Badge variant="secondary" className="bg-white/90 text-black hover:bg-white">
-                      {primaryCategory.name}
-                    </Badge>
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                  {categories.length > 0 ? (
+                    <>
+                      {categories.slice(0, 3).map((c) => (
+                        <Badge
+                          key={c.id}
+                          variant="secondary"
+                          className="bg-white/90 text-black hover:bg-white"
+                        >
+                          {c.name}
+                        </Badge>
+                      ))}
+                      {categories.length > 3 ? (
+                        <Badge
+                          variant="outline"
+                          className="bg-white/20 text-white border-white/30"
+                        >
+                          +{categories.length - 3}
+                        </Badge>
+                      ) : null}
+                    </>
                   ) : null}
 
                   {priceText ? (
@@ -489,6 +531,33 @@ export default async function RestaurantPage({ params, searchParams }: PageProps
                     <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
                       {restaurant.description.trim()}
                     </p>
+                  </CardContent>
+                </Card>
+              ) : null}
+
+              {/* Gallery */}
+              {sortedGallery.length > 0 ? (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Galería</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+                      {sortedGallery.map((img) => (
+                        <div
+                          key={img.id}
+                          className="relative aspect-[4/3] overflow-hidden rounded-xl border"
+                        >
+                          <Image
+                            src={img.url}
+                            alt={`${restaurant.name} - foto`}
+                            fill
+                            className="object-cover"
+                            sizes="(max-width: 768px) 50vw, 33vw"
+                          />
+                        </div>
+                      ))}
+                    </div>
                   </CardContent>
                 </Card>
               ) : null}
@@ -621,14 +690,21 @@ export default async function RestaurantPage({ params, searchParams }: PageProps
 
                   <Separator />
 
-                  {primaryCategory ? (
+                  {/* Categorías (multiple) */}
+                  {categories.length > 0 ? (
                     <div className="flex items-start gap-3">
                       <div className="rounded-full bg-primary/10 p-2">
                         <DollarSign className="h-4 w-4 text-primary" />
                       </div>
                       <div className="flex-1">
-                        <p className="text-sm font-medium">Categoría</p>
-                        <p className="text-sm text-muted-foreground">{primaryCategory.name}</p>
+                        <p className="text-sm font-medium">Categorías</p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {categories.map((c) => (
+                            <Badge key={c.id} variant="outline">
+                              {c.name}
+                            </Badge>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   ) : null}
