@@ -32,8 +32,12 @@ function parseInteger(value: string, fallback: number) {
   return Number.isNaN(parsed) ? fallback : parsed;
 }
 
+type ServerSupabaseClient = Awaited<
+  ReturnType<typeof createServerComponentClient>
+>;
+
 async function upsertPrimaryLocation(
-  supabase: ReturnType<typeof createServerComponentClient>,
+  supabase: ServerSupabaseClient,
   restaurantId: string,
   payload: {
     address: string | null;
