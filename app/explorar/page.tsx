@@ -84,11 +84,13 @@ export default async function ExplorarPage({ searchParams }: PageProps) {
 
   if (error) {
     return (
-      <main className="p-6">
-        <h1 className="text-2xl font-bold">Explorar</h1>
-        <p className="mt-4 text-red-600">
-          Error cargando restaurantes: {error.message}
-        </p>
+      <main className="py-8">
+        <div className="mx-auto w-full max-w-7xl px-6 sm:px-8 lg:px-10">
+          <h1 className="text-2xl font-bold">Explorar</h1>
+          <p className="mt-4 text-red-600">
+            Error cargando restaurantes: {error.message}
+          </p>
+        </div>
       </main>
     );
   }
@@ -159,7 +161,7 @@ export default async function ExplorarPage({ searchParams }: PageProps) {
 
   return (
     <main className="py-8">
-      <div className="mx-auto w-full max-w-7xl px-6">
+      <div className="mx-auto w-full max-w-7xl px-6 sm:px-8 lg:px-10">
         <h1 className="text-2xl font-bold">Explorar</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Resultados: {data?.length ?? 0}
