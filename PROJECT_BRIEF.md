@@ -1,173 +1,295 @@
-# PROJECT BRIEF — Alacarta Web (MVP)
 
-This document defines the **non-negotiable technical context** for this project.
-Any code generated must strictly follow these rules.
+# PROJECT BRIEF — A la Carta (Alacarta Web)
+
+This document is the **single source of truth** for this project.
+Any code generation tool (Codex, assistants, agents) **MUST READ THIS FILE FIRST**
+before creating or modifying any code.
 
 ---
 
 ## Project Overview
-- Product: **A la Carta** (Guía Gastronómica)
-- Type: Public-facing web app (SEO-friendly)
+- Product: **A la Carta** — Guía Gastronómica
+- Type:
+  - Public-facing website (SEO friendly)
+  - Internal **Admin / Data Entry** (protected)
 - Stack:
-  - Next.js **16.1.2**
-  - App Router
+  - Next.js **16.1.x**
+  - App Router (ONLY under `/app`)
   - Tailwind CSS
+  - shadcn/ui
   - Supabase (PostgreSQL + RLS)
   - Vercel (production)
   - pnpm
-- OS (local dev): Linux (Pop!_OS)
+- Local OS: Linux (Pop!_OS)
 
 ---
 
-## Routing Rules (VERY IMPORTANT)
-- The **only active App Router** is located at:
-/app
+## Routing Rules (CRITICAL)
+- The ONLY router in use is **App Router** under `/app`
+- **DO NOT** use `src/app`
+- **DO NOT** create Pages Router files
 
-markdown
-Copiar código
-- **DO NOT** use or reference `src/app`.
-- All routes must live under `/app`.
+---
 
-### Current Routes
+## Routes — Current (Already Implemented)
+Public:
 - `/` → Home
 - `/explorar` → Restaurant listing
 - `/r/[slug]` → Restaurant detail (dynamic)
 
 ---
-## Existing Layout Constraints
-- `app/layout.tsx` already exists and uses:
-  - `next/font/google` (Geist, Geist_Mono)
-  - `import "./globals.css"`
-- Do not remove Geist fonts or globals.css import.
-- Only extend layout by adding:
-  - Header component
-  - dark-theme base classes
-  - metadata update
-  - set html lang="es"
 
+## Routes — Planned (To Be Created by Codex)
 
-## File Structure (Current)
+### Auth (Email OTP / Magic Link)
+- `/login` → Admin login page
+- `/auth/otp` → POST route handler (send OTP)
+- `/auth/callback` → GET route handler (exchange code → session → redirect)
+
+### Admin (Protected)
+- `/admin` → Layout guard (auth + role)
+- `/admin/restaurants` → Admin listing
+- `/admin/restaurants/new` → Create restaurant
+- `/admin/restaurants/[id]` → Edit restaurant by **UUID** (NOT slug)
+
+---
+
+## File Structure
+
+### Current (Exists in Repo)
 /app
-/explorar
-page.tsx
-/r
-/[slug]
-page.tsx
-layout.tsx ← exists and must be respected
-page.tsx
+  layout.tsx
+  page.tsx
+  /explorar
+    page.tsx
+  /r
+    /[slug]
+      page.tsx
 
 /lib
-supabaseClient.ts
+  supabaseClient.ts
 
 /components
-(to be created if needed)
+  /ui (shadcn)
+  /restaurant
+    SimilarRestaurants.tsx
 
-/public
+---
 
-yaml
-Copiar código
+### Planned (Created by Codex)
+/app
+  /login
+    page.tsx
+    /ui
+      LoginForm.tsx
+  /auth
+    /otp
+      route.ts
+    /callback
+      route.ts
+  /admin
+    layout.tsx
+    /restaurants
+      page.tsx
+      /new
+        page.tsx
+      /[id]
+        page.tsx
+
+/lib
+  /supabase
+    server.ts
+    route.ts
 
 ---
 
 ## Supabase Rules
-- Supabase client is located at:
-/lib/supabaseClient.ts
 
-python
-Copiar código
-- Import it as:
+### Client Usage
+- Client is located at `/lib/supabaseClient.ts`
+- Import as:
 ```ts
 import { supabase } from "@/lib/supabaseClient";
-Database Tables
-restaurants
+````
 
-id (uuid)
+### Security
 
-name
+* RLS is **ENABLED**
+* Frontend uses **anon key only**
+* **NEVER** use service_role keys in frontend or route handlers
+* Admin write access is enforced via:
 
-slug (unique)
+  * `profiles.role = 'admin'`
+  * RLS policies
 
-description
+---
 
-price_level
+## Database Tables (Confirmed)
 
-status (published/draft)
+### restaurants
 
-locations
+* id (uuid)
+* name
+* slug (unique)
+* description
+* phone
+* website
+* cover_url
+* price_level
+* status (`published`, `draft`)
+* created_at / updated_at
 
-restaurant_id
+### locations
 
-address
+* id
+* restaurant_id (FK)
+* address
+* municipio
+* zone
+* lat
+* lng
+* is_primary
 
-municipio
+### restaurant_hours
 
-zone
+* restaurant_id (FK)
+* day_of_week (0=Sun .. 6=Sat)
+* opens_at (time)
+* closes_at (time)
+* is_closed (boolean)
 
-is_primary (boolean)
+### categories
 
-Security
-Row Level Security (RLS) is ENABLED.
+* id
+* name
+* slug
 
-Frontend uses publishable / anon key only.
+### restaurant_categories
 
-Never reference service_role keys in frontend code.
+* restaurant_id
+* category_id
 
-Dynamic Route Params (CRITICAL)
-In Next.js 16.1.x:
+### profiles
 
-params may be a Promise
+* id (FK to auth.users.id)
+* role (`admin`, `user`)
+* created_at
 
-Always unwrap it like this:
+---
 
-ts
-Copiar código
+## Admin & Auth (MVP)
+
+### Authentication
+
+* Supabase Auth
+* **Email OTP / Magic Link**
+* No passwords stored
+* Redirect flow:
+
+  * `/login` → send OTP
+  * `/auth/callback` → exchange code → session → `/admin/restaurants`
+
+### Admin Protection
+
+* `/admin/*` routes must:
+
+  * Require authenticated user
+  * Require `profiles.role === 'admin'`
+  * Redirect unauthenticated users to `/login`
+  * Redirect non-admin users to `/`
+
+---
+
+## Admin Data Entry Flow
+
+When saving a restaurant in Admin:
+
+1. Upsert `restaurants`
+2. Upsert **primary** `locations` record (`is_primary = true`)
+3. Upsert 7 rows in `restaurant_hours`
+4. (Phase 2) Manage categories via `restaurant_categories`
+
+---
+
+## Time & Locale Rules (Puerto Rico)
+
+* Display times in **12-hour format (AM/PM)**
+* Internally store times in DB as `time` (24h)
+* Timezone: `America/Puerto_Rico`
+* Show:
+
+  * Abierto / Cerrado
+  * Horario hoy
+  * Tooltip “Ver horario semanal”
+
+---
+
+## Environment Variables & Secrets
+
+### Local Development
+
+* Secrets stored in **1Password Vault**
+* `.env.local` contains **op:// references**
+* Run locally using:
+
+```bash
+op run --env-file=.env.local -- pnpm dev
+```
+
+### Production
+
+* Environment variables stored in **Vercel**
+* Required vars:
+
+  * `NEXT_PUBLIC_SUPABASE_URL`
+  * `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+  * `NEXT_PUBLIC_SITE_URL`
+
+Never commit secrets.
+
+---
+
+## UI / UX Rules
+
+* Tailwind CSS only
+* shadcn/ui components
+* Dark / Light mode already implemented — **DO NOT reimplement**
+* Clean, modern, mobile-first
+* No ratings or reviews in MVP
+
+---
+
+## Dynamic Route Params (Next 16)
+
+`params` may be a Promise.
+
+Always unwrap like:
+
+```ts
 type PageProps = {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ id: string }>;
 };
 
-export default async function Page({ params }: PageProps) {
-  const { slug } = await params;
-}
-Environment Variables
-Used in frontend:
+const { id } = await params;
+```
 
-NEXT_PUBLIC_SUPABASE_URL
+---
 
-NEXT_PUBLIC_SUPABASE_ANON_KEY
+## Code Generation Rules (MANDATORY)
 
-Never hardcode secrets.
+* Always read `PROJECT_BRIEF.md` first
+* Never assume planned files already exist
+* Return **full file contents**, not diffs
+* Do not modify unrelated files
+* Prefer clarity over clever abstractions
 
-UI / UX Guidelines
-Use Tailwind CSS only (no CSS files).
+---
 
-Dark theme friendly.
+## Current Phase Goal
 
-Clean, minimal, modern UI.
+* Implement **Admin + Auth**
+* Secure data entry with RLS
+* Keep public UX intact
 
-Prefer reusable components.
+```
 
-Mobile-first, responsive.
-
-Code Generation Rules (MANDATORY)
-When generating code:
-
-Return full file contents, not partial diffs.
-
-Do NOT modify unrelated files.
-
-Do NOT create duplicate routers.
-
-One feature = one focused change.
-
-Prefer clarity over cleverness.
-
-Goal of Current Phase
-Polish UX
-
-Header with navigation
-
-Card-based listing in /explorar
-
-Clickable cards with hover
-
-Skeleton loaders using App Router conventions
