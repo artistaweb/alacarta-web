@@ -1,27 +1,22 @@
-import Image from "next/image";
 import Link from "next/link";
 
 export function BrandLogo() {
   return (
-    <Link href="/" className="flex items-center gap-2">
+    <Link href="/" className="flex items-center">
       {/* Light */}
-      <Image
-        src="/brand/logo-light.png"
+      <img
+        src="/brand/logo-light.svg"
         alt="A la Carta PR"
-        width={160}
-        height={40}
-        priority
-        className="block dark:hidden"
+        className="block h-15 w-auto dark:hidden"
+        loading="eager"
       />
 
       {/* Dark */}
-      <Image
-        src="/brand/logo-dark.png"
+      <img
+        src="/brand/logo-dark.svg"
         alt="A la Carta PR"
-        width={160}
-        height={40}
-        priority
-        className="hidden dark:block"
+        className="hidden h-15 w-auto dark:block"
+        loading="eager"
       />
     </Link>
   );
